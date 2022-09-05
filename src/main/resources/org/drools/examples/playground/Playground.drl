@@ -1,0 +1,40 @@
+package org.drools.examples.playground
+
+import java.util.Date
+import dd.drools.model.Estimate
+
+declare Estimate
+    // System property drools.propertySpecific=ALLOWED then property changes in the fact types do not
+    // trigger the rules unless @PropertyReactive annotation is set in the Fact type.
+    //
+    // Refer kmodule.xml file for system property 'drools.propertySpecific'
+    //@propertyReactive
+
+    @tag ( Empty ) // Demoing the metadata property tag with value Empty. I guess this value can be modified at runtime.
+
+    // You can also add metadata property to a type property. format is a metadata on createdDate with value mm/dd/yyyy
+    //createdDate: Date @format ( mm/dd/yyyy )
+end
+
+rule "Estimate Validator"
+when
+    estimate : Estimate ( )
+then
+    System.out.println("Estimate fact's attribute active value before setting is "+estimate.active);
+    estimate.active = true;
+    System.out.println("Estimate fact's attribute active value after setting is "+estimate.active);
+    System.out.println("Converting into sale...");
+    // modify will re-evaluate of rules that match properties modified. In this example
+    // convertedToSale property is getting modified and the matching rule is evaluated.
+    modify ( estimate ) {
+        convertedToSale = true
+    }
+end
+
+rule "Converts an Estimate to Sale"
+when
+    estimate : Estimate ( convertedToSale == true)
+then
+    System.out.println("Estimate is converted to sale, setting it's sale date");
+    estimate.saleDate = new Date();
+end

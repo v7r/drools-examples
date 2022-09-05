@@ -1,0 +1,16 @@
+package org.drools.examples.propagation
+
+/**
+ * Refer: https://docs.drools.org/7.73.0.Final/drools-docs/html_single/index.html#fact-propagation-modes-con_decision-engine
+ */
+query findFactMatching (Integer i)
+    String( this == i.toString() )
+end
+
+rule "Rule" @Propagation(IMMEDIATE)
+  when
+    $i : Integer()
+    ?findFactMatching( $i; )
+  then
+    System.out.println("Propagation.drl:: "+ $i );
+end

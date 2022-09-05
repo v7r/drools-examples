@@ -1,0 +1,69 @@
+package org.drools.examples.playground
+
+import dd.drools.model.Job
+import dd.drools.model.JobMaterial
+import dd.drools.model.event.ReserveJobMaterialReq
+import dd.drools.service.DataService
+import dd.drools.model.Inventory
+import java.util.List
+import java.util.HashMap
+import java.util.Map
+import dd.drools.toolkit.Utils
+
+global java.util.List errors
+global java.util.List messages
+
+rule "New Job created"
+when
+    job: Job ( jobMaterials.size() > 0 )
+then
+    System.out.println("Created Reserve Job Material Request");
+    job.jobMaterials.forEach(jobMaterial -> {
+        System.out.println("Creating Job Material reserve request for "+jobMaterial);
+        ReserveJobMaterialReq req = new ReserveJobMaterialReq();
+        req.job = job;
+        req.jobMaterial = jobMaterial;
+        insert(req);
+    });
+ end
+
+ rule "Fetch Inventory for Reserve Job Material Request"
+ when
+    req: ReserveJobMaterialReq ()
+ then
+    dd.drools.toolkit.Utils.logMessage("Reserve job material request received "+req);
+    Inventory inventory = DataService.fetchInventory(req.jobMaterial.material).get();
+    insert(inventory);
+ end
+
+ rule "Inventory quantity is not sufficient for Job Material Request Quantity"
+ when
+    req: ReserveJobMaterialReq()
+    inv: Inventory( material == req.jobMaterial.material, quantity < req.jobMaterial.quantity)
+ then
+    System.err.println("Error: Inventory quantity is not available for "+req.jobMaterial);
+    ((List<String>)drools.getWorkingMemory().getGlobal("errors"))
+        .add("Inventory quantity "+inv.quantity+" is not sufficient for Job Material quantity"+req.jobMaterial.quantity);
+  end
+
+ rule "Inventory quantity is sufficient for Job Material Request Quantity"
+ when
+    req: ReserveJobMaterialReq()
+    inv: Inventory( material == req.jobMaterial.material, quantity >= req.jobMaterial.quantity)
+ then
+    dd.drools.toolkit.Utils.logMessage("Inventory quantity available for "+req.jobMaterial);
+    DataService.reserveMaterial(req);
+    ((List<String>)drools.getWorkingMemory().getGlobal("messages"))
+        .add("Reserved Job Material quantity"+req.jobMaterial.quantity+", remaining inventory: "+inv.quantity);
+end
+
+rule "Create Job"
+when
+    //jobData: Map (((String)this.get("action")).equalsIgnoreCase("createJob") == true )
+    jobData: Map (get("action") == "createJob")
+    //jobData: Map ( keySet contains "action" )
+    //jobData: Map ( keySet contains "action" && get("action") == "createJob" )
+then
+    Utils.logMessage("Create Job rule matched, data action ["+jobData.get("action")+"]");
+    insert(DataService.createJob(jobData));
+ end
